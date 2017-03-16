@@ -28,7 +28,7 @@ namespace PicsDownloader
             {
                 DownloadPics();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 Program.Frm.SetText("Error when downloading.");
                 Thread.Sleep(2000);
@@ -38,17 +38,26 @@ namespace PicsDownloader
         public void DownloadPics()
         {
             if (!Directory.Exists(Path.Combine(Program.AppPath, "pics")))
-                Directory.CreateDirectory(Path.Combine(Program.AppPath, "pics"));
-
-            m_downloaded = false;
-            using (var m_client = new WebClient())
             {
-                m_client.DownloadProgressChanged += M_client_DownloadProgressChanged;
-                m_client.DownloadFileCompleted += M_client_DownloadFileCompleted;
-                m_client.DownloadFileAsync(new Uri("https://github.com/SuperAndroid17/DevPro-Images/archive/master.zip"), m_path);
+                Directory.CreateDirectory(Path.Combine(Program.AppPath, "pics"));
+                Directory.CreateDirectory(Path.Combine(Program.AppPath, "pics", "field"));
+                Directory.CreateDirectory(Path.Combine(Program.AppPath, "pics", "thumbnail"));
             }
-            while (!m_downloaded)
-                Thread.Sleep(10);
+            if (File.Exists("pics.zip"))
+                ExtractPics(0);
+            else
+            {
+
+                m_downloaded = false;
+                using (var m_client = new WebClient())
+                {
+                    m_client.DownloadProgressChanged += M_client_DownloadProgressChanged;
+                    m_client.DownloadFileCompleted += M_client_DownloadFileCompleted;
+                    m_client.DownloadFileAsync(new Uri("https://github.com/SuperAndroid17/DevPro-Images/archive/master.zip"), m_path);
+                }
+                while (!m_downloaded)
+                    Thread.Sleep(10);
+            }
         }
 
         public void ExtractPics(int attempt)
@@ -92,10 +101,20 @@ namespace PicsDownloader
 
                 string filename = Path.Combine(Program.AppPath, entry.Name);
                 string directory = Path.GetDirectoryName(filename);
-                if (directory.Substring(directory.Length - 4).Trim() == "pics")
+                if (directory.Substring(directory.Length - 4).Trim() == "pics" || directory.Substring(directory.Length - 5).Trim() == "field" || directory.Substring(directory.Length - 9).Trim() == "thumbnail")
                 {
                     string[] args = filename.Split('/');
-                    string path = Path.Combine(Program.AppPath, "pics", args[args.Length - 1]);
+                    string path = Path.Combine(Program.AppPath);
+                    foreach (string a in args)
+                    {
+                        if (a == "pics")
+                            path = Path.Combine(path, "pics");
+                        if (a == "field")
+                            path = Path.Combine(path, "field");
+                        if (a == "thumbnail")
+                            path = Path.Combine(path, "thumbnail");                            
+                    }
+                    path = Path.Combine(path, args[args.Length - 1]);
                     byte[] buffer = new byte[4096];
                     Stream zipStream = zipfile.GetInputStream(entry);
                     using (FileStream streamWriter = new FileStream(path, FileMode.Create, FileAccess.Write))
