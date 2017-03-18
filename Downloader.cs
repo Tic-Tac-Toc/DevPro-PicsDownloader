@@ -31,12 +31,16 @@ namespace PicsDownloader
             catch (Exception ex)
             {
                 Program.Frm.SetText("Error when downloading.");
+                File.WriteAllText(Path.Combine(Program.AppPath, "Logs", "PicsDownloader", "error_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".log"), ex.ToString());
                 Thread.Sleep(2000);
             }
         }
 
         public void DownloadPics()
         {
+            if (!Directory.Exists(Path.Combine(Program.AppPath, "Logs", "PicsDownloader")))
+                Directory.CreateDirectory(Path.Combine(Program.AppPath, "Logs", "PicsDownloader"));
+             
             if (!Directory.Exists(Path.Combine(Program.AppPath, "pics")))
             {
                 Directory.CreateDirectory(Path.Combine(Program.AppPath, "pics"));
@@ -67,23 +71,10 @@ namespace PicsDownloader
             {
                 zipfile = new ZipFile(File.OpenRead(m_path));
             }
-            catch
+            catch (Exception ex)
             {
-                if (attempt == 3)
-                {
-                    if (MessageBox.Show("Error trying to extract pics, do you want to retry?", "Error Installing", MessageBoxButtons.YesNo) == DialogResult.Yes)
-                    {
-                        ExtractPics(0);
-                        return;
-                    }
-                    else
-                    {
-                        return;
-                    }
-                }
-
-                Thread.Sleep(500);
-                ExtractPics(attempt + 1);
+                MessageBox.Show("Error trying to extract pics, do you want to retry?", "Error Installing");
+                File.WriteAllText(Path.Combine(Program.AppPath, "Logs", "PicsDownloader", "error_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + ".log"), ex.ToString());
                 return;
             }
 
@@ -96,31 +87,25 @@ namespace PicsDownloader
                 int percentInt = (int)(percent * 100);
                 if (percentInt > 100) percentInt = 100;
                 if (percentInt < 0) percentInt = 0;
-                Program.Frm.SetText("Installing " + entry.Name);
                 Program.Frm.SetProgress(percentInt);
 
-                string filename = Path.Combine(Program.AppPath, entry.Name);
+                string[] directories = entry.Name.Split('/');
+                string filename = entry.Name.Substring(directories[0].Length + 1).Trim();
                 string directory = Path.GetDirectoryName(filename);
-                if (directory.Substring(directory.Length - 4).Trim() == "pics" || directory.Substring(directory.Length - 5).Trim() == "field" || directory.Substring(directory.Length - 9).Trim() == "thumbnail")
+                Program.Frm.SetText("Extracting " + filename);
+
+                if (directory != "")
                 {
-                    string[] args = filename.Split('/');
-                    string path = Path.Combine(Program.AppPath);
-                    foreach (string a in args)
-                    {
-                        if (a == "pics")
-                            path = Path.Combine(path, "pics");
-                        if (a == "field")
-                            path = Path.Combine(path, "field");
-                        if (a == "thumbnail")
-                            path = Path.Combine(path, "thumbnail");                            
-                    }
-                    path = Path.Combine(path, args[args.Length - 1]);
+                    if(!Directory.Exists(directory))
+                        Directory.CreateDirectory(directory);
+
                     byte[] buffer = new byte[4096];
                     Stream zipStream = zipfile.GetInputStream(entry);
-                    using (FileStream streamWriter = new FileStream(path, FileMode.Create, FileAccess.Write))
+                    using (FileStream streamWriter = new FileStream(filename, FileMode.Create, FileAccess.Write))
                         StreamUtils.Copy(zipStream, streamWriter, buffer);
                 }
             }
+
             Program.Frm.SetProgress(100);
 
             zipfile.Close();
